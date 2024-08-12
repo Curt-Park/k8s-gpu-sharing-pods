@@ -23,7 +23,7 @@ kubectl get pods --all-namespaces
 kubectl create namespace argo
 helm install argo-workflows charts/argo-workflows -n argo
 # Wait for argo-workflows ready...
-kubectl -n argo port-forward service/argo-workflows-server 2746:2746 --address="0.0.0.0"
+make port-forward
 ```
 
 Open http://localhost:2746/
@@ -31,13 +31,13 @@ Open http://localhost:2746/
 Login with the token:
 ```bash
 kubectl create -f secret.yaml
-echo "Bearer $(kubectl get secret ui-user-read-only.service-account-token -o=jsonpath='{.data.token}' | base64 --decode)"
+make token
 # Paste all strings including Bearer
 ```
 
 Execute a simple workflow for testing:
 ```bash
-argo submit --watch --serviceaccount argo-workflow workflows/hello-world.yaml
+argo submit --watch workflows/hello-world.yaml
 ```
 <img width="1497" src="https://github.com/user-attachments/assets/ba15639e-d789-4116-bf5a-b67a129d4061">
 
