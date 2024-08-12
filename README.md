@@ -40,3 +40,13 @@ Execute a simple workflow for testing:
 argo submit --watch --serviceaccount argo-workflow workflows/hello-world.yaml
 ```
 <img width="1497" src="https://github.com/user-attachments/assets/ba15639e-d789-4116-bf5a-b67a129d4061">
+
+## Example: A single pod with multiple containers that share a single GPU
+TBD
+
+## Example: Multiple pods that share a single GPU
+TBD
+
+## References
+- https://argo-workflows.readthedocs.io/en/latest/walk-through/argo-cli/
+- https://gist.github.com/Curt-Park/bb20f76ba2b052b03b2e1ea9834517a6
