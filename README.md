@@ -39,3 +39,4 @@ Execute a simple workflow for testing:
 ```bash
 argo submit --watch --serviceaccount argo-workflow workflows/hello-world.yaml
 ```
+<img width="1497" src="https://github.com/user-attachments/assets/ba15639e-d789-4116-bf5a-b67a129d4061">
