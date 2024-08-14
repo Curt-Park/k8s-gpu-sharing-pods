@@ -30,9 +30,10 @@ Open http://localhost:2746/
 
 Login with the token:
 ```bash
-kubectl create -f secret.yaml
+kubectl apply -f secret.yaml
+kubectl get secret  # Check `argo-workflows-admin.service-account-token` created.
 make token
-# Paste all strings including Bearer
+# Paste all strings including Bearer.
 ```
 
 Execute a simple workflow for testing:
