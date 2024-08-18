@@ -16,11 +16,14 @@ spec:
   templates:
     - name: main
       steps:
-      - - name: a
+      - - name: gpu-allocation
           template: create-wf
     - name: create-wf
       script:
         image: badouralix/curl-jq:latest
+        resources:
+          limits:
+            nvidia.com/gpu: 1
         command:
           - sh
         source: >
@@ -54,9 +57,6 @@ spec:
             sleep 3
           done;
           echo "Workflow $WORKFLOW_UID completed with status: $STATUS";
-        resources:
-          limits:
-            nvidia.com/gpu: 1
         env:
         - name: ARGO_TOKEN
           valueFrom:
