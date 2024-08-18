@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
-  generateName: demo-
+  generateName: gpu-allocation-
 spec:
   serviceAccountName: argo-workflow
   entrypoint: main
@@ -13,14 +13,47 @@ spec:
       value: http://argo-workflows-server.argo.svc.cluster.local:2746/api/v1/workflows
     - name: namespace
       value: default
-
   templates:
     - name: main
       steps:
-        - - name: a
-            template: create-wf
+      - - name: a
+          template: create-wf
     - name: create-wf
       script:
+        image: badouralix/curl-jq:latest
+        command:
+          - sh
+        source: >
+          echo "GPU_UUID: $NVIDIA_VISIBLE_DEVICES / NODE_NAME: $NODE_NAME";
+          WORKFLOW_UID=$(curl "{{workflow.parameters.argo-server-url}}/{{workflow.parameters.namespace}}/submit" \
+            -fs \
+            -H "Authorization: Bearer $ARGO_TOKEN" \
+            -d '{
+              "resourceKind": "WorkflowTemplate",
+              "resourceName": "fantastic-tiger",
+              "parameters": [
+                {
+                  "name": "message",
+                  "value": "called"
+                }
+              ]
+            }' | jq -r '.metadata.name');
+          echo "WORKFLOW_UID: $WORKFLOW_UID";
+
+          echo "Watch $WORKFLOW_UID until it is finished";
+          while true; do
+            STATUS=$(curl --silent -X GET "{{workflow.parameters.argo-server-url}}/{{workflow.parameters.namespace}}/$WORKFLOW_UID" \
+              -H "Authorization: Bearer $ARGO_TOKEN" \
+              -H "Content-Type: application/json" \
+            | jq -r '.status.phase');
+            echo "Current status: $STATUS";
+
+            if [ "$STATUS" == "Succeeded" ] || [ "$STATUS" == "Failed" ] || [ "$STATUS" == "Error" ]; then
+              break
+            fi
+            sleep 3
+          done;
+          echo "Workflow $WORKFLOW_UID completed with status: $STATUS";
         resources:
           limits:
             nvidia.com/gpu: 1
@@ -34,38 +67,3 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-
-        image: badouralix/curl-jq:latest
-        command:
-          - sh
-        source: >
-          echo "GPU_UUID: $NVIDIA_VISIBLE_DEVICES / NODE_NAME: $NODE_NAME"
-
-          WORKFLOW_UID=$(curl "{{workflow.parameters.argo-server-url}}/{{workflow.parameters.namespace}}/submit" \
-            -fs \
-            -H "Authorization: Bearer $ARGO_TOKEN" \
-            -d '{
-              "resourceKind": "WorkflowTemplate",
-              "resourceName": "fantastic-tiger",
-              "parameters": [
-                {
-                  "name": "message",
-                  "value": "called"
-                }
-              ]
-            }' | jq -r '.metadata.name')
-          echo "WORKFLOW_UID: $WORKFLOW_UID"
-
-          while true; do
-            STATUS=$(curl -X GET "{{workflow.parameters.argo-server-url}}/{{workflow.parameters.namespace}}/$WORKFLOW_UID" \
-              -H "Authorization: Bearer $ARGO_TOKEN" \
-              -H "Content-Type: application/json" | jq -r '.status.phase')
-            echo "Current status: $STATUS"
-            
-            if [ "$STATUS" == "Succeeded" ] || [ "$STATUS" == "Failed" ] || [ "$STATUS" == "Error" ]; then
-              break
-            fi
-            sleep 3
-          done
-
-          echo "Workflow $WORKFLOW_UID completed with status: $STATUS"
