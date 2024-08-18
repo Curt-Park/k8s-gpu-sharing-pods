@@ -13,17 +13,19 @@ spec:
       value: http://argo-workflows-server.argo.svc.cluster.local:2746/api/v1/workflows
     - name: namespace
       value: default
+    - name: gpus
+      value: 1
+    - name: workflow-name
+      value: fantastic-tiger
   templates:
     - name: main
       steps:
       - - name: gpu-allocation
           template: create-wf
     - name: create-wf
+      podSpecPatch: '{"containers":[{"name":"main", "resources":{"limits":{"nvidia.com/gpu": "{{workflow.parameters.gpus}}" }}}]}'
       script:
         image: badouralix/curl-jq:latest
-        resources:
-          limits:
-            nvidia.com/gpu: 1
         command:
           - sh
         source: >
@@ -33,7 +35,7 @@ spec:
             -H "Authorization: Bearer $ARGO_TOKEN" \
             -d '{
               "resourceKind": "WorkflowTemplate",
-              "resourceName": "fantastic-tiger",
+              "resourceName": "{{workflow.parameters.workflow-name}}",
               "parameters": [
                 {
                   "name": "message",
