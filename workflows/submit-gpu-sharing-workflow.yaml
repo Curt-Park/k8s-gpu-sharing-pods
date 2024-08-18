@@ -17,6 +17,8 @@ spec:
       value: 1
     - name: workflow-name
       value: fantastic-tiger
+    - name: args
+      value: '["message=hello"]'
   templates:
     - name: main
       steps:
@@ -31,17 +33,14 @@ spec:
         source: >
           echo "GPU_UUID: $NVIDIA_VISIBLE_DEVICES / NODE_NAME: $NODE_NAME";
           WORKFLOW_UID=$(curl "{{workflow.parameters.argo-server-url}}/{{workflow.parameters.namespace}}/submit" \
-            -fs \
+            -f \
             -H "Authorization: Bearer $ARGO_TOKEN" \
             -d '{
               "resourceKind": "WorkflowTemplate",
               "resourceName": "{{workflow.parameters.workflow-name}}",
-              "parameters": [
-                {
-                  "name": "message",
-                  "value": "called"
-                }
-              ]
+              "submitOptions": {
+                "parameters": {{workflow.parameters.args}}
+              }
             }' | jq -r '.metadata.name');
           echo "WORKFLOW_UID: $WORKFLOW_UID";
 
