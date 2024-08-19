@@ -32,17 +32,23 @@ spec:
         - sh
       source: >
         echo "GPU_UUID: $NVIDIA_VISIBLE_DEVICES / NODE_NAME: $NODE_NAME";
+        echo '{
+          "resourceKind": "WorkflowTemplate",
+          "resourceName": "{{workflow.parameters.workflow-name}}",
+          "submitOptions": {
+            "parameters": ["gpu-uuids={{NVIDIA_VISIBLE_DEVICES}}", "node={{NODE_NAME}}"]
+          }
+        }' >> data_template.json;
+        sed -e 's/{{NVIDIA_VISIBLE_DEVICES}}/'$NVIDIA_VISIBLE_DEVICES'/' \
+          -e 's/{{NODE_NAME}}/'$NODE_NAME'/' \
+          data_template.json >> data.json;
+        cat data.json;
+
         response=$(curl "{{workflow.parameters.argo-server-url}}/{{workflow.parameters.namespace}}/submit" \
           -fs \
           -w "%{http_code}" \
           -H "Authorization: Bearer $ARGO_TOKEN" \
-          -d '{
-            "resourceKind": "WorkflowTemplate",
-            "resourceName": "{{workflow.parameters.workflow-name}}",
-            "submitOptions": {
-              "parameters": ["gpu-uuids=$NVIDIA_VISIBLE_DEVICES","node=$NODE_NAME"]
-            }
-          }'
+          --data-binary "@./data.json"
         );
         status_code=${response: -3};
         if [[ $status_code -ne 200  ]] ; then

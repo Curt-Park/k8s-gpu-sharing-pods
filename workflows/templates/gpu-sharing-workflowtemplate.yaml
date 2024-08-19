@@ -3,12 +3,14 @@ kind: WorkflowTemplate
 metadata:
   name: gpu-sharing-workflow-template
 spec:
+  ttlStrategy:
+    secondsAfterCompletion: 3600
   serviceAccountName: argo-workflow
   entrypoint: main
   arguments:
     parameters:
     - name: gpu-uuids
-    - name: node
+    - name: node-name
   templates:
   - name: main
     steps:
@@ -17,28 +19,28 @@ spec:
     - - name: inference
         template: inference
   - name: train
+    nodeSelector:
+      kubernetes.io/hostname: "{{workflow.parameters.node-name}}"
     script:
       image: pytorch/pytorch:2.4.0-cuda11.8-cudnn9-runtime
       command:
         - sh
       source: >
-        echo "GPU_UUID: {{workflow.parameters.gpu-uuids}} / NODE: {{workflow.parameters.node}}";
+        echo "GPU_UUID: {{workflow.parameters.gpu-uuids}} / NODE: {{workflow.parameters.node-name}}";
         python3 -c "import torch; print('GPU Count: ', torch.cuda.device_count())";
-      nodeSelector:
-        kubernetes.io/hostname: "{{workflow.parameters.node}}"
       env:
       - name: NVIDIA_VISIBLE_DEVICES
         value: GPU-7e42023c-83da-f45d-8b7a-98d93dec657b
   - name: inference
+    nodeSelector:
+      kubernetes.io/hostname: "{{workflow.parameters.node-name}}"
     script:
       image: pytorch/pytorch:2.4.0-cuda11.8-cudnn9-runtime
       command:
         - sh
       source: >
-        echo "GPU_UUID: {{workflow.parameters.gpu-uuids}} / NODE: {{workflow.parameters.node}}";
+        echo "GPU_UUID: {{workflow.parameters.gpu-uuids}} / NODE: {{workflow.parameters.node-name}}";
         python3 -c "import torch; print('GPU Count: ', torch.cuda.device_count())";
-      nodeSelector:
-        kubernetes.io/hostname: "{{workflow.parameters.node}}"
       env:
       - name: NVIDIA_VISIBLE_DEVICES
         value: GPU-7e42023c-83da-f45d-8b7a-98d93dec657b
