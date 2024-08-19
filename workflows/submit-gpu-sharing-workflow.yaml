@@ -32,8 +32,9 @@ spec:
           - sh
         source: >
           echo "GPU_UUID: $NVIDIA_VISIBLE_DEVICES / NODE_NAME: $NODE_NAME";
-          WORKFLOW_UID=$(curl "{{workflow.parameters.argo-server-url}}/{{workflow.parameters.namespace}}/submit" \
-            -f \
+          response=$(curl "{{workflow.parameters.argo-server-url}}/{{workflow.parameters.namespace}}/submit" \
+            -fs \
+            -w "%{http_code}" \
             -H "Authorization: Bearer $ARGO_TOKEN" \
             -d '{
               "resourceKind": "WorkflowTemplate",
@@ -41,23 +42,39 @@ spec:
               "submitOptions": {
                 "parameters": {{workflow.parameters.args}}
               }
-            }' | jq -r '.metadata.name');
-          echo "WORKFLOW_UID: $WORKFLOW_UID";
+            }'
+          );
+          status_code=${response: -3};
+          if [[ $status_code -ne 200  ]] ; then
+            echo "Submit request failed: $status_code";
+            exit 1
+          fi;
+          content=$(echo ${response} | head -c-4);
+          workflow_uid=$(echo $content | jq -r '.metadata.name');
+          echo "WORKFLOW_UID: $workflow_uid";
 
-          echo "Watch $WORKFLOW_UID until it is finished";
+          echo "Watch $workflow_uid until it is finished";
           while true; do
-            STATUS=$(curl --silent -X GET "{{workflow.parameters.argo-server-url}}/{{workflow.parameters.namespace}}/$WORKFLOW_UID" \
+            response=$(curl --silent -X GET "{{workflow.parameters.argo-server-url}}/{{workflow.parameters.namespace}}/$workflow_uid" \
+              -w "%{http_code}" \
               -H "Authorization: Bearer $ARGO_TOKEN" \
               -H "Content-Type: application/json" \
-            | jq -r '.status.phase');
-            echo "Current status: $STATUS";
+            );
+            status_code=${response: -3};
+            if [[ $status_code -ne 200  ]] ; then
+              echo "Workflow status check request failed: $status_code";
+              exit 1
+            fi;
+            content=$(echo ${response} | head -c-4);
+            status=$(echo $content | jq -r '.status.phase');
+            echo "Current status: $status";
 
-            if [ "$STATUS" == "Succeeded" ] || [ "$STATUS" == "Failed" ] || [ "$STATUS" == "Error" ]; then
+            if [ "$status" == "Succeeded" ] || [ "$status" == "Failed" ] || [ "$status" == "Error" ]; then
               break
             fi
             sleep 3
           done;
-          echo "Workflow $WORKFLOW_UID completed with status: $STATUS";
+          echo "Workflow $WORKFLOW_UID completed with status: $status";
         env:
         - name: ARGO_TOKEN
           valueFrom:
