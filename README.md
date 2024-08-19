@@ -43,7 +43,15 @@ argo submit --watch workflows/hello-world.yaml
 <img width="1497" src="https://github.com/user-attachments/assets/ba15639e-d789-4116-bf5a-b67a129d4061">
 
 ## Example: A single pod with multiple containers that share a single GPU
-TBD
+Create a workflow template that have consecutive jobs sharing a single GPU.
+```bash
+kubectl apply -f workflows/templates/gpu-sharing-workflowtemplate.yaml
+```
+
+Trigger the gpu allocation and gpu-sharing job execution.
+```bash
+argo submit --watch workflows/submit-gpu-sharing-workflow.yaml
+```
 
 ## Example: Multiple pods that share a single GPU
 TBD
