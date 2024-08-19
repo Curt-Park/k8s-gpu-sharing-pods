@@ -46,7 +46,7 @@ spec:
           );
           status_code=${response: -3};
           if [[ $status_code -ne 200  ]] ; then
-            echo "Submit request failed: $status_code";
+            echo "Workflow submission request failed: $status_code";
             exit 1
           fi;
           content=$(echo ${response} | head -c-4);
