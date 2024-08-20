@@ -19,16 +19,30 @@ spec:
       value: 1
     - name: workflow-name
       value: gpu-sharing-workflow-template
+    - name: interval
+      value: 3  # sec
   templates:
   - name: main
     steps:
     - - name: gpu-allocation
         template: create-wf
   - name: create-wf
+    # allocate gpus
     podSpecPatch: '{"containers":[{"name":"main", "resources":{"limits":{"nvidia.com/gpu": "{{workflow.parameters.gpus}}" }}}]}'
     script:
       image: python:3.10-alpine
       command: [python]
+      args: ["-u"]
+      env:
+      - name: ARGO_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: "{{workflow.parameters.secret}}"
+            key: token
+      - name: NODE_NAME
+        valueFrom:
+          fieldRef:
+            fieldPath: spec.nodeName
       source: |
         import os
         import json
@@ -41,7 +55,7 @@ spec:
         token = os.getenv("ARGO_TOKEN")
         print(f"GPU:{gpu_uuids} / node:{node_name}")
 
-        # workflow trigger.
+        # workflow trigger
         data = {
           "resourceKind": "WorkflowTemplate",
           "resourceName": "{{workflow.parameters.workflow-name}}",
@@ -66,7 +80,7 @@ spec:
           print(f"URLError:{e.code}")
           exit()
 
-        # wait for the workflow done.
+        # wait for the workflow done
         while True:
           req = urllib.request.Request(
             f"{{workflow.parameters.argo-server-url}}/{{workflow.parameters.namespace}}/{workflow_name}",
@@ -86,14 +100,4 @@ spec:
             exit()
           if status and status in ("Succeeded","Failed","Error"):
             break
-          time.sleep(3)
-      env:
-      - name: ARGO_TOKEN
-        valueFrom:
-          secretKeyRef:
-            name: "{{workflow.parameters.secret}}"
-            key: token
-      - name: NODE_NAME
-        valueFrom:
-          fieldRef:
-            fieldPath: spec.nodeName
+          time.sleep({{workflow.parameters.interval}})

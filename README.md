@@ -51,9 +51,10 @@ kubectl apply -f workflows/templates/gpu-sharing-workflowtemplate.yaml
 Trigger the gpu allocation and gpu-sharing job execution.
 ```bash
 argo submit --watch workflows/submit-gpu-sharing-workflow.yaml
+argo submit --watch workflows/submit-gpu-sharing-workflow.yaml -p gpus=2  # 2 gpus
 ```
 
-## Example: Multiple pods that share a single GPU
+## Example: A single pod with multiple containers that share a single GPU with MPS
 TBD
 
 ## References
