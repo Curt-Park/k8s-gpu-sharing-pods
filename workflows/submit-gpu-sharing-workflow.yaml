@@ -84,4 +84,4 @@ spec:
           if status and status in ("Succeeded", "Failed", "Error"):
             break
           time.sleep({{workflow.parameters.interval}})
-          
+
