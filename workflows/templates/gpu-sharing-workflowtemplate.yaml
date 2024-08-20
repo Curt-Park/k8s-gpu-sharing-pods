@@ -26,11 +26,11 @@ spec:
       command:
         - sh
       source: >
-        echo "GPU_UUID: {{workflow.parameters.gpu-uuids}} / NODE: {{workflow.parameters.node-name}}";
+        echo "GPU_UUID: $NVIDIA_VISIBLE_DEVICES";
         python3 -c "import torch; print('GPU Count: ', torch.cuda.device_count())";
       env:
       - name: NVIDIA_VISIBLE_DEVICES
-        value: GPU-7e42023c-83da-f45d-8b7a-98d93dec657b
+        value: "{{workflow.parameters.gpu-uuids}}"
   - name: inference
     nodeSelector:
       kubernetes.io/hostname: "{{workflow.parameters.node-name}}"
@@ -39,8 +39,8 @@ spec:
       command:
         - sh
       source: >
-        echo "GPU_UUID: {{workflow.parameters.gpu-uuids}} / NODE: {{workflow.parameters.node-name}}";
+        echo "GPU_UUID: $NVIDIA_VISIBLE_DEVICES";
         python3 -c "import torch; print('GPU Count: ', torch.cuda.device_count())";
       env:
       - name: NVIDIA_VISIBLE_DEVICES
-        value: GPU-7e42023c-83da-f45d-8b7a-98d93dec657b
+        value: "{{workflow.parameters.gpu-uuids}}"
