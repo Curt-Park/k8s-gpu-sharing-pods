@@ -89,15 +89,16 @@ spec:
         while True:
           if status and status in ("Succeeded","Failed","Error"):
             break
+          else:
+            print(status
+          time.sleep({{workflow.parameters.interval}})
           try:
             resp = json.loads(urllib.request.urlopen(req).read().decode("utf-8"))
             if "status" in resp and "phase" in resp["status"]:
               status = resp["status"]["phase"]
-              print(status)
           except urllib.error.HTTPError as e:
             print(f"HTTPError:{e.code}")
             exit()
           except urllib.error.URLError as e:
             print(f"URLError:{e.code}")
             exit()
-          time.sleep({{workflow.parameters.interval}})
