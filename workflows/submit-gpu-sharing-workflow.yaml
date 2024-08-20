@@ -1,0 +1,103 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: gpu-allocation-
+spec:
+  ttlStrategy:
+    secondsAfterCompletion: 3600
+  serviceAccountName: argo-workflow
+  entrypoint: main
+  arguments:
+    parameters:
+    - name: secret
+      value: argo-workflows-admin.service-account-token
+    - name: argo-server-url
+      value: http://argo-workflows-server.argo.svc.cluster.local:2746/api/v1/workflows
+    - name: namespace
+      value: default
+    - name: gpus
+      value: 1
+    - name: workflow-name
+      value: gpu-sharing-workflow-template
+    - name: interval
+      value: 3  # sec
+  templates:
+  - name: main
+    steps:
+    - - name: gpu-allocation
+        template: create-wf
+  - name: create-wf
+    # allocate gpus
+    podSpecPatch: '{"containers":[{"name":"main", "resources":{"limits":{"nvidia.com/gpu": "{{workflow.parameters.gpus}}" }}}]}'
+    script:
+      image: python:3.10-alpine
+      command: [python]
+      args: ["-u"]
+      env:
+      - name: ARGO_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: "{{workflow.parameters.secret}}"
+            key: token
+      - name: NODE_NAME
+        valueFrom:
+          fieldRef:
+            fieldPath: spec.nodeName
+      source: |
+        import os
+        import json
+        import time
+        import urllib
+        import urllib.request
+
+        gpu_uuids = os.getenv("NVIDIA_VISIBLE_DEVICES")
+        node_name = os.getenv("NODE_NAME")
+        token = os.getenv("ARGO_TOKEN")
+        print(f"GPU:{gpu_uuids} / node:{node_name}")
+
+        # workflow trigger
+        data = {
+          "resourceKind": "WorkflowTemplate",
+          "resourceName": "{{workflow.parameters.workflow-name}}",
+          "submitOptions": {
+            "parameters": ["gpu-uuids=" + gpu_uuids, "node-name=" + node_name],
+          }
+        }
+        data = str(json.dumps(data)).encode("utf-8")
+        req = urllib.request.Request(
+          "{{workflow.parameters.argo-server-url}}/{{workflow.parameters.namespace}}/submit",
+          data,
+        )
+        req.add_header("Authorization", "Bearer " + token)
+        try:
+          resp = json.loads(urllib.request.urlopen(req).read().decode("utf-8"))
+          workflow_name = resp["metadata"]["name"]
+          print(workflow_name + " triggered")
+        except urllib.error.HTTPError as e:
+          print(f"HTTPError:{e.code}")
+          exit()
+        except urllib.error.URLError as e:
+          print(f"URLError:{e.code}")
+          exit()
+
+        # wait for the workflow done
+        while True:
+          req = urllib.request.Request(
+            f"{{workflow.parameters.argo-server-url}}/{{workflow.parameters.namespace}}/{workflow_name}",
+          )
+          req.add_header("Authorization", "Bearer " + token)
+          try:
+            resp = json.loads(urllib.request.urlopen(req).read().decode("utf-8"))
+            status = None
+            if "status" in resp and "phase" in resp["status"]:
+              status = resp["status"]["phase"]
+              print(status)
+          except urllib.error.HTTPError as e:
+            print(f"HTTPError:{e.code}")
+            exit()
+          except urllib.error.URLError as e:
+            print(f"URLError:{e.code}")
+            exit()
+          if status and status in ("Succeeded","Failed","Error"):
+            break
+          time.sleep({{workflow.parameters.interval}})

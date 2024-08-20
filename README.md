@@ -23,28 +23,63 @@ kubectl get pods --all-namespaces
 kubectl create namespace argo
 helm install argo-workflows charts/argo-workflows -n argo
 # Wait for argo-workflows ready...
-kubectl -n argo port-forward service/argo-workflows-server 2746:2746 --address="0.0.0.0"
+make port-forward
 ```
 
 Open http://localhost:2746/
 
 Login with the token:
 ```bash
-kubectl create -f secret.yaml
-echo "Bearer $(kubectl get secret ui-user-read-only.service-account-token -o=jsonpath='{.data.token}' | base64 --decode)"
-# Paste all strings including Bearer
+kubectl apply -f secret.yaml
+kubectl get secret  # Check `argo-workflows-admin.service-account-token` created.
+make token
+# Paste all strings including Bearer.
 ```
 
 Execute a simple workflow for testing:
 ```bash
-argo submit --watch --serviceaccount argo-workflow workflows/hello-world.yaml
+argo submit --watch workflows/hello-world.yaml
 ```
 <img width="1497" src="https://github.com/user-attachments/assets/ba15639e-d789-4116-bf5a-b67a129d4061">
 
 ## Example: A single pod with multiple containers that share a single GPU
-TBD
+Create a workflow template that have consecutive jobs sharing a single GPU.
+```bash
+kubectl apply -f workflows/templates/gpu-sharing-workflowtemplate.yaml
+```
 
-## Example: Multiple pods that share a single GPU
+Trigger the gpu allocation and gpu-sharing job execution.
+```bash
+argo submit --watch workflows/submit-gpu-sharing-workflow.yaml
+argo submit --watch workflows/submit-gpu-sharing-workflow.yaml -p gpus=2  # 2 gpus
+```
+
+<img width="3004" src="https://github.com/user-attachments/assets/c599da15-dc81-48dc-a9d6-b6833e16e3f5">
+
+Logs:
+```bash
+# gpu-allocation
+gpu-allocation-zj8g7-create-wf-1869261602: GPU:GPU-7e42023c-83da-f45d-8b7a-98d93dec657b / node:minikube
+gpu-allocation-zj8g7-create-wf-1869261602: gpu-sharing-workflow-template-w89qv triggered
+gpu-allocation-zj8g7-create-wf-1869261602: Running
+gpu-allocation-zj8g7-create-wf-1869261602: Running
+gpu-allocation-zj8g7-create-wf-1869261602: Running
+gpu-allocation-zj8g7-create-wf-1869261602: Running
+gpu-allocation-zj8g7-create-wf-1869261602: Running
+gpu-allocation-zj8g7-create-wf-1869261602: Running
+gpu-allocation-zj8g7-create-wf-1869261602: Succeeded
+gpu-allocation-zj8g7-create-wf-1869261602: time="2024-08-20T00:27:08 UTC" level=info msg="sub-process exited" argo=true error="<nil>"
+
+# gpu-sharing-workflow
+gpu-sharing-workflow-template-w89qv-train-1102222563: GPU_UUID: GPU-7e42023c-83da-f45d-8b7a-98d93dec657b
+gpu-sharing-workflow-template-w89qv-train-1102222563: GPU Count:  1
+gpu-sharing-workflow-template-w89qv-train-1102222563: time="2024-08-20T00:26:49 UTC" level=info msg="sub-process exited" argo=true error="<nil>"
+gpu-sharing-workflow-template-w89qv-inference-2403067347: GPU_UUID: GPU-7e42023c-83da-f45d-8b7a-98d93dec657b
+gpu-sharing-workflow-template-w89qv-inference-2403067347: GPU Count:  1
+gpu-sharing-workflow-template-w89qv-inference-2403067347: time="2024-08-20T00:27:00 UTC" level=info msg="sub-process exited" argo=true error="<nil>"
+```
+
+## Example: A single pod with multiple containers that share a single GPU with MPS
 TBD
 
 ## References

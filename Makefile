@@ -7,6 +7,8 @@ cluster:
 cluster-removal:
 	minikube delete
 
+port-forward:
+	kubectl -n argo port-forward service/argo-workflows-server 2746:2746 --address="0.0.0.0"
 
-tunnel:
-	minikube tunnel --bind-address="0.0.0.0"
+token:
+	@echo "Bearer $(shell kubectl get secret argo-workflows-admin.service-account-token -o=jsonpath='{.data.token}' | base64 --decode)"

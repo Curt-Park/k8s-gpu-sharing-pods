@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: gpu-sharing-workflow-template
+spec:
+  ttlStrategy:
+    secondsAfterCompletion: 3600
+  serviceAccountName: argo-workflow
+  entrypoint: main
+  arguments:
+    parameters:
+    - name: gpu-uuids
+    - name: node-name
+  templates:
+  - name: main
+    steps:
+    - - name: train
+        template: train
+    - - name: inference
+        template: inference
+  - name: train
+    nodeSelector:
+      kubernetes.io/hostname: "{{workflow.parameters.node-name}}"
+    script:
+      image: pytorch/pytorch:2.4.0-cuda11.8-cudnn9-runtime
+      command:
+        - sh
+      source: >
+        echo "GPU_UUID: $NVIDIA_VISIBLE_DEVICES";
+        python3 -c "import torch; print('GPU Count: ', torch.cuda.device_count())";
+      env:
+      - name: NVIDIA_VISIBLE_DEVICES
+        value: "{{workflow.parameters.gpu-uuids}}"
+  - name: inference
+    nodeSelector:
+      kubernetes.io/hostname: "{{workflow.parameters.node-name}}"
+    script:
+      image: pytorch/pytorch:2.4.0-cuda11.8-cudnn9-runtime
+      command:
+        - sh
+      source: >
+        echo "GPU_UUID: $NVIDIA_VISIBLE_DEVICES";
+        python3 -c "import torch; print('GPU Count: ', torch.cuda.device_count())";
+      env:
+      - name: NVIDIA_VISIBLE_DEVICES
+        value: "{{workflow.parameters.gpu-uuids}}"
