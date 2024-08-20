@@ -55,26 +55,27 @@ spec:
         token = os.getenv("ARGO_TOKEN")
         print(f"GPU:{gpu_uuids} / node:{node_name}")
 
-        # workflow trigger
-        data = {
-          "resourceKind": "WorkflowTemplate",
-          "resourceName": "{{workflow.parameters.workflow-name}}",
-          "submitOptions": {
-            "parameters": ["gpu-uuids=" + gpu_uuids, "node-name=" + node_name],
-          }
-        }
-        url = "{{workflow.parameters.argo-server-url}}/{{workflow.parameters.namespace}}/submit"
+        # workflow submission preparation.
+        data = {}
+        data["resourceKind"] = "WorkflowTemplate"
+        data["resourceName"] = "{{workflow.parameters.workflow-name}}"
+        data["submitOptions"] = {"parameters": ["gpu-uuids=" + gpu_uuids, "node-name=" + node_name]}
         data = str(json.dumps(data)).encode("utf-8")
+        url = "{{workflow.parameters.argo-server-url}}/{{workflow.parameters.namespace}}/submit"
         req = urllib.request.Request(url, data)
         req.add_header("Authorization", "Bearer " + token)
+
+        # trigger the workflow.
         resp = json.loads(urllib.request.urlopen(req).read().decode("utf-8"))
         workflow_name = resp["metadata"]["name"]
         print(workflow_name + " triggered")
 
-        # wait for the workflow done
+        # workflow status check preparation.
         url = f"{{workflow.parameters.argo-server-url}}/{{workflow.parameters.namespace}}/{workflow_name}"
         req, status = urllib.request.Request(url), None
         req.add_header("Authorization", "Bearer " + token)
+
+        # wait for the workflow done.
         while True:
           resp = json.loads(urllib.request.urlopen(req).read().decode("utf-8"))
           if "status" in resp and "phase" in resp["status"]:
