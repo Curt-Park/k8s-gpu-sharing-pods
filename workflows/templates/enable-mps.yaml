@@ -23,11 +23,15 @@ spec:
       kubernetes.io/hostname: "{{workflow.parameters.node-name}}"
     script:
       image: nvidia/cuda:12.1.0-base-ubuntu18.04
+      securityContext:
+        privileged: true
       env:
       - name: NVIDIA_VISIBLE_DEVICES
         value: "{{workflow.parameters.gpu-uuids}}"
-      command: [sh, -c]
+      command: [sh]
       source: |
-        nvidia-smi -c EXECLUSIVE_PROCESS
+        echo "mps activation start"
+        nvidia-smi -c EXCLUSIVE_PROCESS
+        echo "set GPU $NVIDIA_VISIBLE_DEVICES mode as EXECLUSIVE_PROCESS"
         nvidia-cuda-mps-control -d
         echo "MPS enabled"
