@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: enable-mps-workflow-template
+spec:
+  ttlStrategy:
+    secondsAfterCompletion: 3600
+  serviceAccountName: argo-workflow
+  entrypoint: main
+  arguments:
+    parameters:
+    - name: gpu-uuids
+    - name: node-name
+  templates:
+  - name: main
+    steps:
+    - - name: enable-mps
+        template: enable-mps
+
+
+  - name: enable-mps
+    nodeSelector:
+      kubernetes.io/hostname: "{{workflow.parameters.node-name}}"
+    script:
+      image: nvidia/cuda:12.1.0-base-ubuntu18.04
+      env:
+      - name: NVIDIA_VISIBLE_DEVICES
+        value: "{{workflow.parameters.gpu-uuids}}"
+      command: [sh, -c]
+      source: |
+        nvidia-smi -c EXECLUSIVE_PROCESS
+        nvidia-cuda-mps-control -d
+        echo "MPS enabled"

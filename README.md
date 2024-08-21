@@ -84,4 +84,5 @@ TBD
 
 ## References
 - https://argo-workflows.readthedocs.io/en/latest/walk-through/argo-cli/
+- https://argo-workflows.readthedocs.io/en/latest/fields/#workflow
 - https://gist.github.com/Curt-Park/bb20f76ba2b052b03b2e1ea9834517a6
