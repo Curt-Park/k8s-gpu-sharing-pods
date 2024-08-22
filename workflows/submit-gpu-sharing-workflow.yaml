@@ -6,9 +6,15 @@ spec:
   ttlStrategy:
     secondsAfterCompletion: 3600
   serviceAccountName: argo-workflow
+  volumeClaimTemplates:
+  - metadata:
+      name: shared-volume
+    spec:
+      accessModes: [ "ReadWriteMany" ]
+      resources:
+        requests:
+          storage: 1M
   volumes:
-  - name: shared-volume
-    emptyDir: {}
   - name: nvidia-cuda-mps-control
     hostPath:
       path: /usr/bin/nvidia-cuda-mps-control
@@ -103,12 +109,9 @@ spec:
 
         # mps deactivation
         if [ "{{workflow.parameters.mps}}" = "enabled"  ]; then
-          echo "mps deactivation start"
-          echo quit | nvidia-cuda-mps-control
           echo "set GPU $NVIDIA_VISIBLE_DEVICES mode as DEFAULT"
           nvidia-smi -c DEFAULT
-          echo "MPS disabled"
-          echo $(ps -ef | grep mps)
+          echo "MPS will be disabled after this pod is terminated"
         fi
 
   - name: init
@@ -126,15 +129,17 @@ spec:
           sleep {{workflow.parameters.interval}}
         done
         cat $gpu_uuids_path
+        cp $gpu_uuids_path /tmp/gpu_uuids
         cat $node_name_path
+        cp $node_name_path /tmp/node_name
     outputs:
       parameters:
       - name: gpu-uuids
         valueFrom:
-          path: /mnt/shared/gpu_uuids
+          path: /tmp/gpu_uuids
       - name: node-name
         valueFrom:
-          path: /mnt/shared/node_name
+          path: /tmp/node_name
 
   - name: trigger-gpu-sharing-workflow
     inputs:
