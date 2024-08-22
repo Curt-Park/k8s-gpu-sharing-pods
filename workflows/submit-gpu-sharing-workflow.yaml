@@ -6,7 +6,19 @@ spec:
   ttlStrategy:
     secondsAfterCompletion: 3600
   serviceAccountName: argo-workflow
+  volumes:
+  - name: shared-volume
+    emptyDir: {}
+  - name: nvidia-cuda-mps-control
+    hostPath:
+      path: /usr/bin/nvidia-cuda-mps-control
+      type: File
+  - name: nvidia-mps
+    hostPath:
+      path: /tmp/nvidia-mps
+      type: DirectoryOrCreate
   entrypoint: main
+  parallelism: 2
   arguments:
     parameters:
     - name: secret
@@ -17,18 +29,118 @@ spec:
       value: default
     - name: gpus
       value: 1
+    - name: mps
+      value: enabled
     - name: workflow-name
       value: gpu-sharing-workflow-template
     - name: interval
-      value: 3  # sec
+      value: 1  # sec
   templates:
   - name: main
-    steps:
-    - - name: gpu-allocation
-        template: create-wf
-  - name: create-wf
-    # allocate gpus
+    dag:
+      tasks:
+      - name: gpu-allocation
+        template: gpu-allocation
+      - name: init
+        template: init
+      - name: trigger-gpu-sharing-workflow
+        template: trigger-gpu-sharing-workflow
+        dependencies: [init]
+        arguments:
+          parameters:
+          - name: gpu-uuids
+            value: "{{tasks.init.outputs.parameters.gpu-uuids}}"
+          - name: node-name
+            value: "{{tasks.init.outputs.parameters.node-name}}"
+      - name: tear-down
+        template: tear-down
+        dependencies: [trigger-gpu-sharing-workflow]
+        continueOn:
+          failed: true
+
+
+  - name: gpu-allocation
     podSpecPatch: '{"containers":[{"name":"main", "resources":{"limits":{"nvidia.com/gpu": "{{workflow.parameters.gpus}}" }}}]}'
+    script:
+      image: nvidia/cuda:12.1.0-base-ubuntu18.04
+      securityContext:
+        privileged: true
+      volumeMounts:
+      - name: shared-volume
+        mountPath: /mnt/shared
+      - name: nvidia-cuda-mps-control
+        mountPath: /host/bin/nvidia-cuda-mps-control
+      - name: nvidia-mps
+        mountPath: /tmp/nvidia-mps
+      env:
+      - name: NODE_NAME
+        valueFrom:
+          fieldRef:
+            fieldPath: spec.nodeName
+      command: [sh]
+      source: |
+        echo "GPU UUID: $NVIDIA_VISIBLE_DEVICES / NODE NAME: $NODE_NAME"
+
+        # mps activation
+        if [ "{{workflow.parameters.mps}}" = "enabled"  ]; then
+          echo "mps activation start"
+          nvidia-smi -c EXCLUSIVE_PROCESS
+          echo "set GPU $NVIDIA_VISIBLE_DEVICES mode as EXECLUSIVE_PROCESS"
+          nvidia-cuda-mps-control -d
+          echo "MPS enabled"
+          echo $(ps -ef | grep mps)
+        fi
+
+        # pass all required information for gpu uses.
+        echo -n $NVIDIA_VISIBLE_DEVICES >> /mnt/shared/gpu-uuids
+        echo -n $NODE_NAME >> /mnt/shared/node-name
+
+        # wait for the gpu sharing workflow terminated...
+        while [ ! -f "/mnt/shared/terminated" ]; do
+          echo "Sleeping for {{workflow.parameters.interval}} seconds until the workflow terminated..."
+          sleep {{workflow.parameters.interval}}
+        done
+
+        # mps deactivation
+        if [ "{{workflow.parameters.mps}}" = "enabled"  ]; then
+          echo "mps deactivation start"
+          echo quit | nvidia-cuda-mps-control
+          echo "set GPU $NVIDIA_VISIBLE_DEVICES mode as DEFAULT"
+          nvidia-smi -c DEFAULT
+          echo "MPS disabled"
+          echo $(ps -ef | grep mps)
+        fi
+
+  - name: init
+    script:
+      image: alpine:3.18
+      volumeMounts:
+      - name: shared-volume
+        mountPath: /mnt/shared
+      command: [sh]
+      source: |
+        gpu_uuids_path="/mnt/shared/gpu-uuids"
+        node_name_path="/mnt/shared/node-name"
+        while [ ! -f $gpu_uuids_path ] || [ ! -f $node_name_path ]; do
+          echo "Sleeping for {{workflow.parameters.interval}} seconds until the gpu(s) allocated..."
+          sleep {{workflow.parameters.interval}}
+        done
+        cat $gpu_uuids_path
+        cat $node_name_path
+    outputs:
+      parameters:
+      - name: gpu-uuids
+        valueFrom:
+          path: /mnt/shared/gpu_uuids
+      - name: node-name
+        valueFrom:
+          path: /mnt/shared/node_name
+
+  - name: trigger-gpu-sharing-workflow
+    inputs:
+      parameters:
+      - name: gpu-uuids
+      - name: node-name
     script:
       image: python:3.10-alpine
       command: [python]
@@ -50,11 +162,11 @@ spec:
         import urllib
         import urllib.request
 
-        gpu_uuids = os.getenv("NVIDIA_VISIBLE_DEVICES")
-        node_name = os.getenv("NODE_NAME")
+        gpu_uuids = "{{inputs.parameters.gpu-uuids}}"
+        node_name = "{{inputs.parameters.node-name}}"
         token = os.getenv("ARGO_TOKEN")
         print(f"GPU:{gpu_uuids} / node:{node_name}")
-
+        
         # workflow submission preparation.
         data = {}
         data["resourceKind"] = "WorkflowTemplate"
@@ -84,3 +196,12 @@ spec:
                 break
             time.sleep({{workflow.parameters.interval}})
 
+  - name: tear-down
+    script:
+      image: alpine:3.18
+      volumeMounts:
+      - name: shared-volume
+        mountPath: /mnt/shared
+      command: [sh]
+      source: |
+        touch /mnt/shared/terminated
