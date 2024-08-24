@@ -10,37 +10,26 @@ spec:
   arguments:
     parameters:
     - name: gpu-uuids
+      value: GPU-7e42023c-83da-f45d-8b7a-98d93dec657b
     - name: node-name
+      value: minikube
   templates:
   - name: main
-    steps:
-    - - name: train
-        template: train
-    - - name: inference
-        template: inference
-  - name: train
+    dag:
+      tasks:
+      - name: step1
+        template: load-test
+      - name: step2
+        template: load-test
+
+
+  - name: load-test
+    podSpecPatch: '{"hostIPC": true}'  # for MPS
     nodeSelector:
       kubernetes.io/hostname: "{{workflow.parameters.node-name}}"
-    script:
-      image: pytorch/pytorch:2.4.0-cuda11.8-cudnn9-runtime
-      command:
-        - sh
-      source: >
-        echo "GPU_UUID: $NVIDIA_VISIBLE_DEVICES";
-        python3 -c "import torch; print('GPU Count: ', torch.cuda.device_count())";
-      env:
-      - name: NVIDIA_VISIBLE_DEVICES
-        value: "{{workflow.parameters.gpu-uuids}}"
-  - name: inference
-    nodeSelector:
-      kubernetes.io/hostname: "{{workflow.parameters.node-name}}"
-    script:
-      image: pytorch/pytorch:2.4.0-cuda11.8-cudnn9-runtime
-      command:
-        - sh
-      source: >
-        echo "GPU_UUID: $NVIDIA_VISIBLE_DEVICES";
-        python3 -c "import torch; print('GPU Count: ', torch.cuda.device_count())";
+    container:
+      image: oguzpastirmaci/gpu-burn:latest
+      command: ["./gpu_burn", "15"]
       env:
       - name: NVIDIA_VISIBLE_DEVICES
         value: "{{workflow.parameters.gpu-uuids}}"
