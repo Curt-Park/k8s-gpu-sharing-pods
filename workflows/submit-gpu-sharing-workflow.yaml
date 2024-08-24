@@ -70,7 +70,8 @@ spec:
 
 
   - name: gpu-allocation
-    podSpecPatch: '{"containers":[{"name":"main", "resources":{"limits":{"nvidia.com/gpu": "{{workflow.parameters.gpus}}" }}}]}'
+    # hostIPC: true for MPS
+    podSpecPatch: '{"hostIPC": true, "containers":[{"name":"main", "resources":{"limits":{"nvidia.com/gpu": "{{workflow.parameters.gpus}}" }}}]}'
     script:
       image: nvidia/cuda:12.1.0-base-ubuntu18.04
       securityContext:
