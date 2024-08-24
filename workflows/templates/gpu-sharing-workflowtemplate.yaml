@@ -10,9 +10,7 @@ spec:
   arguments:
     parameters:
     - name: gpu-uuids
-      value: GPU-7e42023c-83da-f45d-8b7a-98d93dec657b
     - name: node-name
-      value: minikube
   templates:
   - name: main
     dag:
