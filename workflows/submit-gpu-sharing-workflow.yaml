@@ -23,6 +23,10 @@ spec:
     hostPath:
       path: /tmp/nvidia-mps
       type: DirectoryOrCreate
+  - name: nvidia-mps-log
+    hostPath:
+      path: /var/log/nvidia-mps
+      type: DirectoryOrCreate
   entrypoint: main
   parallelism: 2
   arguments:
@@ -78,6 +82,8 @@ spec:
         mountPath: /host/bin/nvidia-cuda-mps-control
       - name: nvidia-mps
         mountPath: /tmp/nvidia-mps
+      - name: nvidia-mps-log
+        mountPath: /var/log/nvidia-mps
       env:
       - name: NODE_NAME
         valueFrom:
@@ -90,9 +96,9 @@ spec:
         # mps activation
         if [ "{{workflow.parameters.mps}}" = "enabled"  ]; then
           echo "mps activation start"
-          nvidia-smi -c EXCLUSIVE_PROCESS
+          CUDA_VISIBLE_DEVICES=$NVIDIA_VISIBLE_DEVICES nvidia-smi -c EXCLUSIVE_PROCESS
           echo "set GPU $NVIDIA_VISIBLE_DEVICES mode as EXECLUSIVE_PROCESS"
-          nvidia-cuda-mps-control -d
+          CUDA_VISIBLE_DEVICES=$NVIDIA_VISIBLE_DEVICES nvidia-cuda-mps-control -d
           echo "MPS enabled"
           echo $(ps -ef | grep mps)
         fi
@@ -110,7 +116,7 @@ spec:
         # mps deactivation
         if [ "{{workflow.parameters.mps}}" = "enabled"  ]; then
           echo "set GPU $NVIDIA_VISIBLE_DEVICES mode as DEFAULT"
-          nvidia-smi -c DEFAULT
+          CUDA_VISIBLE_DEVICES=$NVIDIA_VISIBLE_DEVICES nvidia-smi -c DEFAULT
           echo "MPS will be disabled after this pod is terminated"
         fi
 
@@ -171,7 +177,7 @@ spec:
         node_name = "{{inputs.parameters.node-name}}"
         token = os.getenv("ARGO_TOKEN")
         print(f"GPU:{gpu_uuids} / node:{node_name}")
-        
+
         # workflow submission preparation.
         data = {}
         data["resourceKind"] = "WorkflowTemplate"

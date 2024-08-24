@@ -26,7 +26,11 @@ spec:
       kubernetes.io/hostname: "{{workflow.parameters.node-name}}"
     script:
       image: oguzpastirmaci/gpu-burn:latest
+      securityContext:
+        privileged: true
       command: ["./gpu_burn", "15"]
       env:
       - name: NVIDIA_VISIBLE_DEVICES
+        value: "{{workflow.parameters.gpu-uuids}}"
+      - name: CUDA_VISIBLE_DEVICES
         value: "{{workflow.parameters.gpu-uuids}}"
