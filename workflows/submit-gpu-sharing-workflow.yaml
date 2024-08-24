@@ -40,7 +40,7 @@ spec:
     - name: gpus
       value: 1
     - name: mps
-      value: enabled
+      value: disabled
     - name: workflow-name
       value: gpu-sharing-workflow-template
     - name: interval
