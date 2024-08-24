@@ -1,4 +1,4 @@
-# [WIP] GPU Sharing Pods on Kubernetes
+# GPU Sharing Pods on Kubernetes
 By default, Kubernetes doesn't allow GPU sharing cases as follows:
 - A pod with multiple containers that share a single GPU.
 - Multiple pods that share a single GPU.
