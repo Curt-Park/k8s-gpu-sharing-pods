@@ -42,7 +42,9 @@ argo submit --watch workflows/hello-world.yaml
 ```
 <img width="1497" src="https://github.com/user-attachments/assets/ba15639e-d789-4116-bf5a-b67a129d4061">
 
-## Example: A single pod with multiple containers that share a single GPU
+## Examples
+<img width="1728" src="https://github.com/user-attachments/assets/460158a9-7e3c-482b-bf48-bdcb599f9285">
+
 Create a workflow template that have consecutive jobs sharing a single GPU.
 ```bash
 kubectl apply -f workflows/templates/gpu-sharing-workflowtemplate.yaml
@@ -50,37 +52,13 @@ kubectl apply -f workflows/templates/gpu-sharing-workflowtemplate.yaml
 
 Trigger the gpu allocation and gpu-sharing job execution.
 ```bash
+# time slicing with 1 GPU
 argo submit --watch workflows/submit-gpu-sharing-workflow.yaml
+# time slicing with 2 GPUs
 argo submit --watch workflows/submit-gpu-sharing-workflow.yaml -p gpus=2  # 2 gpus
+# MPS with 1 GPU
+argo submit --watch workflows/submit-gpu-sharing-workflow.yaml -p mps=enabled
 ```
-
-<img width="3004" src="https://github.com/user-attachments/assets/c599da15-dc81-48dc-a9d6-b6833e16e3f5">
-
-Logs:
-```bash
-# gpu-allocation
-gpu-allocation-zj8g7-create-wf-1869261602: GPU:GPU-7e42023c-83da-f45d-8b7a-98d93dec657b / node:minikube
-gpu-allocation-zj8g7-create-wf-1869261602: gpu-sharing-workflow-template-w89qv triggered
-gpu-allocation-zj8g7-create-wf-1869261602: Running
-gpu-allocation-zj8g7-create-wf-1869261602: Running
-gpu-allocation-zj8g7-create-wf-1869261602: Running
-gpu-allocation-zj8g7-create-wf-1869261602: Running
-gpu-allocation-zj8g7-create-wf-1869261602: Running
-gpu-allocation-zj8g7-create-wf-1869261602: Running
-gpu-allocation-zj8g7-create-wf-1869261602: Succeeded
-gpu-allocation-zj8g7-create-wf-1869261602: time="2024-08-20T00:27:08 UTC" level=info msg="sub-process exited" argo=true error="<nil>"
-
-# gpu-sharing-workflow
-gpu-sharing-workflow-template-w89qv-train-1102222563: GPU_UUID: GPU-7e42023c-83da-f45d-8b7a-98d93dec657b
-gpu-sharing-workflow-template-w89qv-train-1102222563: GPU Count:  1
-gpu-sharing-workflow-template-w89qv-train-1102222563: time="2024-08-20T00:26:49 UTC" level=info msg="sub-process exited" argo=true error="<nil>"
-gpu-sharing-workflow-template-w89qv-inference-2403067347: GPU_UUID: GPU-7e42023c-83da-f45d-8b7a-98d93dec657b
-gpu-sharing-workflow-template-w89qv-inference-2403067347: GPU Count:  1
-gpu-sharing-workflow-template-w89qv-inference-2403067347: time="2024-08-20T00:27:00 UTC" level=info msg="sub-process exited" argo=true error="<nil>"
-```
-
-## Example: A single pod with multiple containers that share a single GPU with MPS
-TBD
 
 ## References
 - https://argo-workflows.readthedocs.io/en/latest/walk-through/argo-cli/
