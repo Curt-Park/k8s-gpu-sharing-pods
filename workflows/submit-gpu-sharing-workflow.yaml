@@ -74,7 +74,7 @@ spec:
     script:
       image: nvidia/cuda:12.1.0-base-ubuntu18.04
       securityContext:
-        privileged: true
+        privileged: true  # for MPS
       volumeMounts:
       - name: shared-volume
         mountPath: /mnt/shared
@@ -96,9 +96,9 @@ spec:
         # mps activation
         if [ "{{workflow.parameters.mps}}" = "enabled"  ]; then
           echo "mps activation start"
-          CUDA_VISIBLE_DEVICES=$NVIDIA_VISIBLE_DEVICES nvidia-smi -c EXCLUSIVE_PROCESS
+          nvidia-smi -c EXCLUSIVE_PROCESS
           echo "set GPU $NVIDIA_VISIBLE_DEVICES mode as EXECLUSIVE_PROCESS"
-          CUDA_VISIBLE_DEVICES=$NVIDIA_VISIBLE_DEVICES nvidia-cuda-mps-control -d
+          nvidia-cuda-mps-control -d
           echo "MPS enabled"
           echo $(ps -ef | grep mps)
         fi
@@ -116,7 +116,7 @@ spec:
         # mps deactivation
         if [ "{{workflow.parameters.mps}}" = "enabled"  ]; then
           echo "set GPU $NVIDIA_VISIBLE_DEVICES mode as DEFAULT"
-          CUDA_VISIBLE_DEVICES=$NVIDIA_VISIBLE_DEVICES nvidia-smi -c DEFAULT
+          nvidia-smi -c DEFAULT
           echo "MPS will be disabled after this pod is terminated"
         fi
 
