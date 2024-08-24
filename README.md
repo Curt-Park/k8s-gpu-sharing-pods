@@ -45,12 +45,12 @@ argo submit --watch workflows/hello-world.yaml
 ## Examples
 <img width="1728" src="https://github.com/user-attachments/assets/460158a9-7e3c-482b-bf48-bdcb599f9285">
 
-Create a workflow template that have consecutive jobs sharing a single GPU.
+Create a workflow template that have parallel jobs sharing GPU(s).
 ```bash
 kubectl apply -f workflows/templates/gpu-sharing-workflowtemplate.yaml
 ```
 
-Trigger the gpu allocation and gpu-sharing job execution.
+Trigger the gpu allocation and gpu-sharing workflow execution.
 ```bash
 # time slicing with 1 GPU
 argo submit --watch workflows/submit-gpu-sharing-workflow.yaml
